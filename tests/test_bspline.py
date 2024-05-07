@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 import torch
 
-from splinx.spline import B_batch, extend_grid, coef2curve
+from splinx.spline import B_batch, extend_grid, coef2curve, curve2coef
 
 __author__ = "Jamison Moody"
 __copyright__ = "Jamison Moody"
@@ -113,6 +113,40 @@ def coef2curve_torch(x_eval, grid, coef, k, device="cpu"):
     y_eval = torch.einsum('ij,ijk->ik', coef, B_batch_torch(x_eval, grid, k, device=device))
     return y_eval
 
+def curve2coef_torch(x_eval, y_eval, grid, k, device="cpu"):
+    '''
+    converting B-spline curves to B-spline coefficients using least squares.
+    
+    Args:
+    -----
+        x_eval : 2D torch.tensor
+            shape (number of splines, number of samples)
+        y_eval : 2D torch.tensor
+            shape (number of splines, number of samples)
+        grid : 2D torch.tensor
+            shape (number of splines, number of grid points)
+        k : int
+            the piecewise polynomial order of splines.
+        device : str
+            devicde
+        
+    Example
+    -------
+    >>> num_spline = 5
+    >>> num_sample = 100
+    >>> num_grid_interval = 10
+    >>> k = 3
+    >>> x_eval = torch.normal(0,1,size=(num_spline, num_sample))
+    >>> y_eval = torch.normal(0,1,size=(num_spline, num_sample))
+    >>> grids = torch.einsum('i,j->ij', torch.ones(num_spline,), torch.linspace(-1,1,steps=num_grid_interval+1))
+    >>> curve2coef(x_eval, y_eval, grids, k=k).shape
+    torch.Size([5, 13])
+    '''
+    # x_eval: (size, batch); y_eval: (size, batch); grid: (size, grid); k: scalar
+    mat = B_batch_torch(x_eval, grid, k, device=device).permute(0, 2, 1)
+    coef = torch.linalg.lstsq(mat.to('cpu'), y_eval.unsqueeze(dim=2).to('cpu')).solution[:, :, 0]  # sometimes 'cuda' version may diverge
+    return coef.to(device)
+
 @pytest.mark.parametrize("seed, k", [
     (0, 2), (0, 3), (0, 4),    # Different values of k with the same seed
     (1, 3), (2, 3), (3, 3)     # Different seeds with the same k value
@@ -160,4 +194,28 @@ def test_coef2curve(seed, k):
 
     assert jnp.allclose(coef2curve(x_eval, extended_grids, coef, k=k),
                         jnp.array(coef2curve_torch(x_torch, grids_torch, coef_torch, k=k)), rtol=1e-4), "JAX output does not match expected output"
+    
 
+@pytest.mark.parametrize("seed, k", [
+    (20, 2), (20, 3), (20, 4),    # Different values of k with the same seed
+    (21, 3), (22, 3), (23, 3)     # Different seeds with the same k value
+])
+def test_curve2coef(seed, k):
+
+    num_spline = 5
+    num_sample = 100
+    num_grid_interval = 10
+    k = 3
+    key = random.PRNGKey(seed)
+    key, subkey = random.split(key)
+    x_eval = random.normal(key,(num_spline, num_sample))
+    y_eval = random.normal(subkey,(num_spline, num_sample))
+    grids = jnp.einsum('i,j->ij', jnp.ones(num_spline,), jnp.linspace(-1,1,num_grid_interval+1))
+    extended_grids = extend_grid(grids, k)
+
+    x_torch = torch.tensor(np.array(x_eval))
+    grids_torch = torch.tensor(np.array(grids))
+    y_torch = torch.tensor(np.array(y_eval))
+
+    assert jnp.allclose(curve2coef(x_eval, y_eval, extended_grids, k=k),
+                        jnp.array(curve2coef_torch(x_torch, y_torch, grids_torch, k=k)), rtol=1e-4), "JAX output does not match expected output"

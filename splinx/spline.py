@@ -2,6 +2,7 @@ from jax import jit, random
 import jax.numpy as jnp
 from functools import partial
 import matplotlib.pyplot as plt
+from jax import vmap
 
 # x shape: (size, x); grid shape: (size, grid)
 def extend_grid(grid, k_extend=0):
@@ -124,13 +125,21 @@ def curve2coef(x_eval, y_eval, grid, k):
     >>> x_eval = random.normal(0,1,size=(num_spline, num_sample))
     >>> y_eval = random.normal(0,1,size=(num_spline, num_sample))
     >>> grids = jnp.einsum('i,j->ij', jnp.ones(num_spline,), jnp.linspace(-1,1,num_grid_interval+1))
+    >>> extended_grids = extend_grid(grids, k)
     >>> curve2coef(x_eval, y_eval, grids, k=k).shape
-    torch.Size([5, 13])
+    (5, 13)
     '''
-    # x_eval: (size, batch); y_eval: (size, batch); grid: (size, grid); k: scalar
-    mat = B_batch(x_eval, grid, k).permute(0, 2, 1)
-    coef = jnp.linalg.lstsq(mat, y_eval[:,:,None]).solution[:, :, 0]
-    return coef
+
+    def batched_lstsq(mat, y_eval):
+        # Solve the least squares problem, over the batch
+        coef, _, _, _ = jnp.linalg.lstsq(mat, y_eval, rcond=None)
+        return coef
+        
+    mat_batch = jnp.transpose(B_batch(x_eval, grid, k), (0, 2, 1))
+    vmap_process_batch = vmap(batched_lstsq, in_axes=(0, 0))
+    coef_batch = vmap_process_batch(mat_batch, y_eval)
+
+    return coef_batch
 
 if __name__=="__main__":
 
