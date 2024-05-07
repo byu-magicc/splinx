@@ -1,6 +1,6 @@
 # Splinx
 
-This is a jax implementation of b-splines.
+A jax implementation of b-splines.
 
 ## Installation
 

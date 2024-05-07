@@ -1,10 +1,10 @@
 # This is where you can list information about your package.
 [project]
-name="example_package"
+name="splinx"
 authors = [
-    {name="James Usevitch", email="james_usevitch@byu.edu"},
+    {name="Jamison Moody", email="jmm1995@byu.edu"},
 ]
-description = "An example Python package repository for the BYU MAGICC Lab."
+description = "A jax implementation of B-splines."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE.txt" }
@@ -36,6 +36,7 @@ dynamic = [
 # If you are in the folder cloned from GitHub, you can run
 # `pip install -e ".[dev]"`.
 dev = [
+    "torch",
     "pytest",
     "ruff",
     "pyright",
