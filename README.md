@@ -9,13 +9,13 @@ Using [Mamba](https://mamba.readthedocs.io/en/latest/):
 * Create a new Mamba environment
 
 ```bash
-mamba create -n example_environment python=3.12
+mamba create -n splinx python=3.12
 ```
 
 * Activate the Mamba environment
 
 ```bash
-mamba activate example_environment
+mamba activate splinx
 ```
 
 * Navigate into the top level folder and pip install the package.
@@ -40,6 +40,12 @@ pip install -e ".[dev]"
 ```
 
 This will install (among other things) [Pytest](https://docs.pytest.org/en/8.2.x/) and [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/).
+
+To test the b-spline functionality, run:
+
+```bash
+python -m pytest tests/test_bspline.py 
+```
 
 
 ## Writing Documentation
