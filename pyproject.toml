@@ -1,0 +1,61 @@
+# This is where you can list information about your package.
+[project]
+name="example_package"
+authors = [
+    {name="James Usevitch", email="james_usevitch@byu.edu"},
+]
+description = "An example Python package repository for the BYU MAGICC Lab."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE.txt" }
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+]
+
+# This is where you can list the required dependencies for your package.
+# Use the names you would use if pip installing them from the command line.
+dependencies = [
+    "jax",
+    "numpy",
+    "scipy",
+    "matplotlib",
+]
+
+dynamic = [
+    "version",
+]
+
+
+# This is where you can list optional dependencies for your package.
+# You can install these by running `pip install example_package[...]`
+# where [...] has the name of the optional dependency.
+[project.optional-dependencies]
+
+# You can install the `dev` dependencies by running
+# `pip install -e "example_package[dev]"`.
+# If you are in the folder cloned from GitHub, you can run
+# `pip install -e ".[dev]"`.
+dev = [
+    "pytest",
+    "ruff",
+    "pyright",
+    "mkdocs-material",      # Material for MkDocs.
+    "mkdocstrings[python]", # Material for MkDocs.
+]
+
+# This is where you can tell pip to ignore certain folders.
+# This is useful if you have folders at the top level that
+# are not part of the package.
+[tool.setuptools.packages.find]
+include = ["example_package*"]
+exclude = ["docs*", "tests*"]
+
+[build-system]
+# AVOID CHANGING REQUIRES: IT WILL BE UPDATED BY PYSCAFFOLD!
+requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=5"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+# For smarter version schemes and other configuration options,
+# check out https://github.com/pypa/setuptools_scm
+version_scheme = "no-guess-dev"
