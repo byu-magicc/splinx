@@ -1,6 +1,6 @@
-# Example Python Package
+# Splinx
 
-This is a bare bones example of a Python package.
+This is a jax implementation of b-splines.
 
 ## Installation
 
@@ -27,8 +27,7 @@ pip install -e .
 * Open a Python REPL and try running an example to test the installation
 
 ```python
-import magicc
-magicc.fly()
+import splinx
 ```
 
 ## Developer Dependencies
