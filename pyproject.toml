@@ -48,7 +48,7 @@ dev = [
 # This is useful if you have folders at the top level that
 # are not part of the package.
 [tool.setuptools.packages.find]
-include = ["example_package*"]
+include = ["splinx*"]
 exclude = ["docs*", "tests*"]
 
 [build-system]
