@@ -50,10 +50,19 @@ def B_batch(x, grid, k=0):
     (5, 13, 100)
     '''
 
-    value = (x[:,None,:] >= grid[:,:-1,None]) * (x[:,None,:] < grid[:,1:,None])
+    value = (x[:, None, :] >= grid[:, :-1, None]) * (x[:, None, :] < grid[:, 1:, None])
 
-    for i in range(1, k+1):
-        value = (x[:, None, :] - grid[:, :-(i + 1), None]) / (grid[:, i:-1, None] - grid[:, :-(i + 1), None]) * value[:, :-1] + (grid[:, i + 1:, None] - x[:, None, :]) / (grid[:, i + 1:, None] - grid[:, 1:(-i), None]) * value[:, 1:]
+    for i in range(1, k + 1):
+        denominator1 = grid[:, i:-1, None] - grid[:, :-(i + 1), None]
+        denominator2 = grid[:, i + 1:, None] - grid[:, 1:(-i), None]
+
+        condition1 = denominator1 != 0
+        condition2 = denominator2 != 0
+
+        value_left = jnp.where(condition1, (x[:, None, :] - grid[:, :-(i + 1), None]) / denominator1 * value[:, :-1], 0)
+        value_right = jnp.where(condition2, (grid[:, i + 1:, None] - x[:, None, :]) / denominator2 * value[:, 1:], 0)
+
+        value = value_left + value_right
     
     return value
 
