@@ -5,14 +5,19 @@ import matplotlib.pyplot as plt
 from jax import vmap
 
 # x shape: (size, x); grid shape: (size, grid)
-def extend_grid(grid, k_extend=0):
+def extend_grid(grid, k_extend=0, clamp=False):
     # pad k to left and right
     # grid shape: (batch, grid)
-    h = (grid[:, [-1]] - grid[:, [0]]) / (grid.shape[1] - 1)
+    if clamp:
+        repeated_first = jnp.repeat(grid[:, :1], k_extend, axis=1)
+        repeated_last = jnp.repeat(grid[:, -1:], k_extend, axis=1)
+        grid = jnp.concatenate([repeated_first, grid, repeated_last], axis=1)
+    else:
+        h = (grid[:, [-1]] - grid[:, [0]]) / (grid.shape[1] - 1)
 
-    for i in range(k_extend):
-        grid = jnp.concatenate([grid[:, [0]] - h, grid], axis=1)
-        grid = jnp.concatenate([grid, grid[:, [-1]] + h], axis=1)
+        for i in range(k_extend):
+            grid = jnp.concatenate([grid[:, [0]] - h, grid], axis=1)
+            grid = jnp.concatenate([grid, grid[:, [-1]] + h], axis=1)
 
     return grid
 
