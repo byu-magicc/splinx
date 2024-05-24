@@ -5,14 +5,19 @@ import matplotlib.pyplot as plt
 from jax import vmap
 
 # x shape: (size, x); grid shape: (size, grid)
-def extend_grid(grid, k_extend=0):
+def extend_grid(grid, k_extend=0, clamp=False):
     # pad k to left and right
     # grid shape: (batch, grid)
-    h = (grid[:, [-1]] - grid[:, [0]]) / (grid.shape[1] - 1)
+    if clamp:
+        repeated_first = jnp.repeat(grid[:, :1], k_extend, axis=1)
+        repeated_last = jnp.repeat(grid[:, -1:], k_extend, axis=1)
+        grid = jnp.concatenate([repeated_first, grid, repeated_last], axis=1)
+    else:
+        h = (grid[:, [-1]] - grid[:, [0]]) / (grid.shape[1] - 1)
 
-    for i in range(k_extend):
-        grid = jnp.concatenate([grid[:, [0]] - h, grid], axis=1)
-        grid = jnp.concatenate([grid, grid[:, [-1]] + h], axis=1)
+        for i in range(k_extend):
+            grid = jnp.concatenate([grid[:, [0]] - h, grid], axis=1)
+            grid = jnp.concatenate([grid, grid[:, [-1]] + h], axis=1)
 
     return grid
 
@@ -50,10 +55,19 @@ def B_batch(x, grid, k=0):
     (5, 13, 100)
     '''
 
-    value = (x[:,None,:] >= grid[:,:-1,None]) * (x[:,None,:] < grid[:,1:,None])
+    value = (x[:, None, :] >= grid[:, :-1, None]) * (x[:, None, :] < grid[:, 1:, None])
 
-    for i in range(1, k+1):
-        value = (x[:, None, :] - grid[:, :-(i + 1), None]) / (grid[:, i:-1, None] - grid[:, :-(i + 1), None]) * value[:, :-1] + (grid[:, i + 1:, None] - x[:, None, :]) / (grid[:, i + 1:, None] - grid[:, 1:(-i), None]) * value[:, 1:]
+    for i in range(1, k + 1):
+        denominator1 = grid[:, i:-1, None] - grid[:, :-(i + 1), None]
+        denominator2 = grid[:, i + 1:, None] - grid[:, 1:(-i), None]
+
+        condition1 = denominator1 != 0
+        condition2 = denominator2 != 0
+
+        value_left = jnp.where(condition1, (x[:, None, :] - grid[:, :-(i + 1), None]) / denominator1 * value[:, :-1], 0)
+        value_right = jnp.where(condition2, (grid[:, i + 1:, None] - x[:, None, :]) / denominator2 * value[:, 1:], 0)
+
+        value = value_left + value_right
     
     return value
 
