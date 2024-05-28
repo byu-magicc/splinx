@@ -3,6 +3,7 @@ import jax.numpy as jnp
 from functools import partial
 import matplotlib.pyplot as plt
 from jax import vmap
+from jax import custom_jvp
 
 # x shape: (size, x); grid shape: (size, grid)
 def extend_grid(grid, k_extend=0, clamp=False):
@@ -71,6 +72,7 @@ def B_batch(x, grid, k=0):
     
     return value
 
+@custom_jvp
 @partial(jit, static_argnames=["k"])
 def coef2curve(x_eval, grid, coef, k):
     '''
@@ -113,6 +115,35 @@ def coef2curve(x_eval, grid, coef, k):
     # coef: (size, coef), B_batch: (size, coef, batch), summer over coef
     y_eval = jnp.einsum('ij,ijk->ik', coef, B_batch(x_eval, grid, k))
     return y_eval
+
+@coef2curve.defjvp
+def coef2curve_jvp(primals, tangents):
+    x_eval, grid, coef, k = primals
+    x_eval_dot, _, _, _ = tangents
+
+    y_eval = coef2curve(x_eval, grid, coef, k)
+
+    dB_dx_eval, _ = spline_derivative(x_eval, grid, coef, k) * x_eval_dot
+
+    y_eval_dot = jnp.einsum('ij,ijk->ik', coef, dB_dx_eval * x_eval_dot)
+
+    return y_eval, y_eval_dot
+    
+def spline_derivative(x_eval, grid, coef, k):
+    # Implement the function to compute the derivative of B-spline basis wrt x_eval here
+    numerator = coef[:, 1:] - coef[:, :-1]
+    denominator = grid[:, k+1:-1] - grid[:, 1:-(k+1)]
+    new_coef = numerator * k / denominator
+    
+    # 0/0 defaults to 0 as defined here: https://public.vrac.iastate.edu/~oliver/courses/me625/week5b.pdf
+    is_zero_over_zero = (numerator == 0.0) & (denominator == 0.0)
+
+    new_coef = jnp.where(is_zero_over_zero & jnp.isnan(new_coef), 0.0, new_coef)
+
+    y_eval = coef2curve(x_eval, grid[:,1:-1], new_coef, k=k-1)
+
+    return y_eval, new_coef
+
 
 @partial(jit, static_argnames=["k"])
 def curve2coef(x_eval, y_eval, grid, k):
