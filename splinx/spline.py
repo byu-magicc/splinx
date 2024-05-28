@@ -123,9 +123,7 @@ def coef2curve_jvp(primals, tangents):
 
     y_eval = coef2curve(x_eval, grid, coef, k)
 
-    dB_dx_eval, _ = spline_derivative(x_eval, grid, coef, k) * x_eval_dot
-
-    y_eval_dot = jnp.einsum('ij,ijk->ik', coef, dB_dx_eval * x_eval_dot)
+    y_eval_dot = spline_derivative(x_eval, grid, coef, k) * x_eval_dot
 
     return y_eval, y_eval_dot
     
@@ -142,7 +140,7 @@ def spline_derivative(x_eval, grid, coef, k):
 
     y_eval = coef2curve(x_eval, grid[:,1:-1], new_coef, k=k-1)
 
-    return y_eval, new_coef
+    return y_eval
 
 
 @partial(jit, static_argnames=["k"])
