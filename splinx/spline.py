@@ -159,6 +159,8 @@ def curve2coef(x_eval, y_eval, grid, k):
 
 # Creates a static version of coef2curve that has a certain order of spline
 def create_static_coef2curve(k):
+
+    assert k > 0, "k must be greater than 0"
     
     def B_batch(x, grid):
         value = (x[:, None, :] >= grid[:, :-1, None]) * (x[:, None, :] < grid[:, 1:, None])
@@ -175,6 +177,26 @@ def create_static_coef2curve(k):
 
             value = value_left + value_right
         return value
+    
+    def B_batch_lower(x, grid):
+        value = (x[:, None, :] >= grid[:, :-1, None]) * (x[:, None, :] < grid[:, 1:, None])
+        for i in range(1, k):
+
+            denominator1 = grid[:, i:-1, None] - grid[:, :-(i + 1), None]
+            denominator2 = grid[:, i + 1:, None] - grid[:, 1:(-i), None]
+
+            condition1 = denominator1 != 0
+            condition2 = denominator2 != 0
+
+            value_left = jnp.where(condition1, (x[:, None, :] - grid[:, :-(i + 1), None]) / denominator1 * value[:, :-1], 0)
+            value_right = jnp.where(condition2, (grid[:, i + 1:, None] - x[:, None, :]) / denominator2 * value[:, 1:], 0)
+
+            value = value_left + value_right
+        return value
+    
+    def coef2curve_lower(x_eval, grid, coef):
+        y_eval = jnp.einsum('ij,ijk->ik', coef, B_batch_lower(x_eval, grid))
+        return y_eval
 
     @custom_jvp
     def coef2curve(x_eval, grid, coef):
@@ -192,7 +214,7 @@ def create_static_coef2curve(k):
 
         new_coef = jnp.where(is_zero_over_zero & jnp.isnan(new_coef), 0.0, new_coef)
 
-        y_eval = coef2curve(x_eval, grid[:,1:-1], new_coef, k=k-1)
+        y_eval = coef2curve_lower(x_eval, grid[:,1:-1], new_coef)
 
         return y_eval
 
