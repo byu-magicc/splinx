@@ -199,7 +199,7 @@ def create_static_coef2curve(k):
     @coef2curve.defjvp
     def coef2curve_jvp(primals, tangents):
         x_eval, grid, coef = primals
-        x_eval_dot, _, _, _ = tangents
+        x_eval_dot, _, _ = tangents
 
         y_eval = coef2curve(x_eval, grid, coef)
 
