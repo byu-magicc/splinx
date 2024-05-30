@@ -22,6 +22,7 @@ def extend_grid(grid, k_extend=0, clamp=False):
 
     return grid
 
+@partial(jit, static_argnames=["k"])
 def B_batch(x, grid, k=0):
     '''
     evaludate x on B-spline bases
@@ -72,7 +73,8 @@ def B_batch(x, grid, k=0):
     return value
 
 # @custom_jvp
-def coef2curve_reg(x_eval, grid, coef, k):
+@partial(jit, static_argnames=["k"])
+def coef2curve(x_eval, grid, coef, k):
     '''
     converting B-spline coefficients to B-spline curves. Evaluate x on B-spline curves (summing up B_batch results over B-spline basis).
     
@@ -114,38 +116,6 @@ def coef2curve_reg(x_eval, grid, coef, k):
     y_eval = jnp.einsum('ij,ijk->ik', coef, B_batch(x_eval, grid, k))
     return y_eval
 
-# def spline_derivative(x_eval, grid, coef, k):
-#     # Implement the function to compute the derivative of B-spline basis wrt x_eval here
-#     numerator = coef[:, 1:] - coef[:, :-1]
-#     denominator = grid[:, k+1:-1] - grid[:, 1:-(k+1)]
-#     new_coef = numerator * k / denominator
-    
-#     # 0/0 defaults to 0 as defined here: https://public.vrac.iastate.edu/~oliver/courses/me625/week5b.pdf
-#     is_zero_over_zero = (numerator == 0.0) & (denominator == 0.0)
-
-#     new_coef = jnp.where(is_zero_over_zero & jnp.isnan(new_coef), 0.0, new_coef)
-
-#     y_eval = coef2curve_reg(x_eval, grid[:,1:-1], new_coef, k=k-1)
-
-#     return y_eval
-
-# @coef2curve_reg.defjvp
-# def coef2curve_reg_jvp(primals, tangents):
-#     x_eval, grid, coef, k = primals
-#     x_eval_dot, _, _, _ = tangents
-
-#     # k_static = k if isinstance(k, int) else int(k)
-
-
-
-#     y_eval = x_eval # coef2curve_reg(x_eval, grid, coef, k)
-
-#     y_eval_dot = x_eval # spline_derivative(x_eval, grid, coef, k) * x_eval_dot
-
-#     return y_eval, y_eval_dot
-
-coef2curve = jit(coef2curve_reg, static_argnames=["k"])
-
 @partial(jit, static_argnames=["k"])
 def curve2coef(x_eval, y_eval, grid, k):
     '''
@@ -186,6 +156,58 @@ def curve2coef(x_eval, y_eval, grid, k):
     coef_batch = vmap_process_batch(mat_batch, y_eval)
 
     return coef_batch
+
+# Creates a static version of coef2curve that has a certain order of spline
+def create_static_coef2curve(k):
+    
+    def B_batch(x, grid):
+        value = (x[:, None, :] >= grid[:, :-1, None]) * (x[:, None, :] < grid[:, 1:, None])
+        for i in range(1, k + 1):
+
+            denominator1 = grid[:, i:-1, None] - grid[:, :-(i + 1), None]
+            denominator2 = grid[:, i + 1:, None] - grid[:, 1:(-i), None]
+
+            condition1 = denominator1 != 0
+            condition2 = denominator2 != 0
+
+            value_left = jnp.where(condition1, (x[:, None, :] - grid[:, :-(i + 1), None]) / denominator1 * value[:, :-1], 0)
+            value_right = jnp.where(condition2, (grid[:, i + 1:, None] - x[:, None, :]) / denominator2 * value[:, 1:], 0)
+
+            value = value_left + value_right
+        return value
+
+    @custom_jvp
+    def coef2curve(x_eval, grid, coef):
+        y_eval = jnp.einsum('ij,ijk->ik', coef, B_batch(x_eval, grid))
+        return y_eval
+    
+    def spline_derivative(x_eval, grid, coef):
+        # Implement the function to compute the derivative of B-spline basis wrt x_eval here
+        numerator = coef[:, 1:] - coef[:, :-1]
+        denominator = grid[:, k+1:-1] - grid[:, 1:-(k+1)]
+        new_coef = numerator * k / denominator
+        
+        # 0/0 defaults to 0 as defined here: https://public.vrac.iastate.edu/~oliver/courses/me625/week5b.pdf
+        is_zero_over_zero = (numerator == 0.0) & (denominator == 0.0)
+
+        new_coef = jnp.where(is_zero_over_zero & jnp.isnan(new_coef), 0.0, new_coef)
+
+        y_eval = coef2curve(x_eval, grid[:,1:-1], new_coef, k=k-1)
+
+        return y_eval
+
+    @coef2curve.defjvp
+    def coef2curve_jvp(primals, tangents):
+        x_eval, grid, coef = primals
+        x_eval_dot, _, _, _ = tangents
+
+        y_eval = coef2curve(x_eval, grid, coef)
+
+        y_eval_dot = spline_derivative(x_eval, grid, coef) * x_eval_dot
+
+        return y_eval, y_eval_dot
+    
+    return jit(coef2curve)
 
 if __name__=="__main__":
 

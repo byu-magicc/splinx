@@ -22,4 +22,4 @@ f_jit = jit(f, static_argnames=["k"])
 
 if __name__=='__main__':
     x = jnp.linspace(-1,1,100)
-    f_jit(x=x, k=2)
+    print(f_jit(x=x, k=2))
