@@ -22,14 +22,25 @@ def basis_0(t, knots):
     return jnp.where(condition, 1.0, 0.0)
 
 
-@jit
-def basis(t, knots, k):
+# @jit
+@partial(jit, static_argnames=["k"])
+def basis_i(t, knots, i, *, k):
+    jax.debug.breakpoint()
     jax.lax.cond(
-        k == 0,
+        k == 0, 
         lambda: basis_0(t, knots),
-        lambda: (knots - t) / (basis(t, knots, k-1),
-        operand_stack=[]
+        lambda: (t - knots[i]) / (knots[i+k] - knots[i]) * basis_i(t, knots, i, k=k-1) + (knots[i+k+1] - t) / (knots[i+k+1] - knots[i+1]) * basis_i(t, knots, i+1, k=k-1)
+        # return t0 * basis_i(t, knots, i, k-1) + t1 * basis_i(t, knots, i+1, k-1)
     )
+
+# @jit
+# def basis(t, knots, k):
+#     jax.lax.cond(
+#         k == 0,
+#         lambda: basis_0(t, knots),
+#         lambda: (knots - t) / (basis(t, knots, k-1),
+#         operand_stack=[]
+#     )
 
 
 if __name__ == "__main__":
@@ -44,7 +55,9 @@ if __name__ == "__main__":
 
     print(f"condition: {(knots[:-1] <= t) & (t < knots[1:])}")
 
-    print(f"basis: {basis_0(t, knots)}")
+    print(f"basis_0: {basis_0(t, knots)}")
+
+    print(f"basis_1: {basis_i(t, knots, 0, k=0)}")
 
 
     # Plot the basis functions
