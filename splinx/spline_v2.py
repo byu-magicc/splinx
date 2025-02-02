@@ -2,6 +2,7 @@
 Refactored code to be easier to understand.
 """
 
+import jax
 from jax import jit, random, vmap
 import jax.numpy as jnp
 from functools import partial
@@ -10,17 +11,25 @@ from jax import vmap, lax, debug
 from jax import custom_jvp
 
 
-@partial(jit, static_argnames=["n"])
-def basis_0(t, knots, *, n):
+# @partial(jit, static_argnames=["n"])
+@jit
+def basis_0(t, knots):
     """
     Given a knot vector and the number of control points n, this 
     computes all values of N_{i,0}(t) for i = 0, 1, ..., n-1.
     """
     condition = (knots[:-1] <= t) & (t < knots[1:])
     return jnp.where(condition, 1.0, 0.0)
-    # return 1
 
 
+@jit
+def basis(t, knots, k):
+    jax.lax.cond(
+        k == 0,
+        lambda: basis_0(t, knots),
+        lambda: (knots - t) / (basis(t, knots, k-1),
+        operand_stack=[]
+    )
 
 
 if __name__ == "__main__":
@@ -35,7 +44,7 @@ if __name__ == "__main__":
 
     print(f"condition: {(knots[:-1] <= t) & (t < knots[1:])}")
 
-    print(f"basis: {basis_0(t, knots, n=3)}")
+    print(f"basis: {basis_0(t, knots)}")
 
 
     # Plot the basis functions
