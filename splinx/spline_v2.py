@@ -25,13 +25,18 @@ def basis_0(t, knots):
 # @jit
 @partial(jit, static_argnames=["k"])
 def basis_i(t, knots, i, *, k):
-    jax.debug.breakpoint()
-    jax.lax.cond(
-        k == 0, 
-        lambda: basis_0(t, knots),
-        lambda: (t - knots[i]) / (knots[i+k] - knots[i]) * basis_i(t, knots, i, k=k-1) + (knots[i+k+1] - t) / (knots[i+k+1] - knots[i+1]) * basis_i(t, knots, i+1, k=k-1)
-        # return t0 * basis_i(t, knots, i, k-1) + t1 * basis_i(t, knots, i+1, k-1)
-    )
+    if k == 0:
+        return basis_0(t, knots)
+    else:
+        t0 = (t - knots[i]) / (knots[i+k] - knots[i])
+        t1 = (knots[i+k+1] - t) / (knots[i+k+1] - knots[i+1])
+        return t0 * basis_i(t, knots, i, k=k-1) + t1 * basis_i(t, knots, i+1, k=k-1)
+    # jax.lax.cond(
+    #     k == 0, 
+    #     lambda: basis_0(t, knots),
+    #     lambda: (t - knots[i]) / (knots[i+k] - knots[i]) * basis_i(t, knots, i, k=k-1) + (knots[i+k+1] - t) / (knots[i+k+1] - knots[i+1]) * basis_i(t, knots, i+1, k=k-1)
+    #     # return t0 * basis_i(t, knots, i, k-1) + t1 * basis_i(t, knots, i+1, k-1)
+    # )
 
 # @jit
 # def basis(t, knots, k):
@@ -57,7 +62,8 @@ if __name__ == "__main__":
 
     print(f"basis_0: {basis_0(t, knots)}")
 
-    print(f"basis_1: {basis_i(t, knots, 0, k=0)}")
+    k = 2
+    print(f"basis_{k}: {basis_i(t, knots, 0, k=k)}")
 
 
     # Plot the basis functions
