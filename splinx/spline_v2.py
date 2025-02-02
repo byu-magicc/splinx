@@ -110,3 +110,7 @@ if __name__ == "__main__":
     
     for i in range(10):
         print(f"Time at {i}: {timeit(lambda: get_bases(t, knots, indices, k).block_until_ready(), number=1)}")
+
+    # Test gradient
+    grad = jax.grad(lambda t: jnp.sum(vmap(basis, in_axes=(0,None,None,None))(t, knots, indices, k)))
+    print(grad(jnp.array([[0.5]])))
