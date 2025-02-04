@@ -138,12 +138,15 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
+
+
     # Test clamped spline
     knots_clamped = jnp.concatenate([jnp.zeros(k+1), jnp.arange(1, n-k), jnp.ones(k+1) * (n-k)])
 
     t_clamped = jnp.linspace(knots_clamped[k], knots_clamped[n], n_t)
+    t_clamped = t_clamped.at[-1].set(t_clamped[-1] - 1e-4)
+
     clamped_vals = b(t_clamped, knots_clamped)
-    breakpoint()
 
     plt.plot(clamped_vals[0], clamped_vals[1], label="Clamped Spline")
     plt.plot(ctrl_pts[0], ctrl_pts[1], 'ro--', label="Control Points")
