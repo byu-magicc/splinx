@@ -83,8 +83,8 @@ basis_vmap = vmap(basis, in_axes=(None, None, 0, None), out_axes=0)
 
 if __name__ == "__main__":
 
-    n = 40
-    k = 5 # Compile time gets slow at about 10
+    n = 12
+    k = 2 # Compile time gets slow at about 10
 
     t = 1.5
 
@@ -120,18 +120,32 @@ if __name__ == "__main__":
 
 
     # Plotting a test B-spline
-    x = jnp.repeat(jnp.array([ii for ii in range(20)]), 2)
-    y = jnp.tile(jnp.array([0, 1, 1, 0]), 10)
+    x = jnp.repeat(jnp.array([ii for ii in range(n//2)]), 2)
+    y = jnp.tile(jnp.array([0, 1, 1, 0]), n//4)
 
-    ctrl_pts = jnp.stack([x, y], axis=0)
+    ctrl_pts = jnp.stack([x, y], axis=0) + jnp.array([[1], [1]])
 
-    b = vmap(lambda t: ctrl_pts @ basis_vmap(t, knots, indices, k), in_axes=0)
+    b = vmap(lambda t, knots: ctrl_pts @ basis_vmap(t, knots, indices, k), in_axes = (0, None), out_axes=1)
 
-    t_vals = jnp.linspace(knots[0], knots[-1], 1000)
+    n_t = 1000
+    # Spline is only defined from the k-th knot to the n-th knot
+    t_vals = jnp.linspace(knots[k], knots[n], n_t)
 
-    spline_vals = b(t_vals).reshape(-1, 1000)
+    spline_vals = b(t_vals, knots)
 
     plt.plot(spline_vals[0], spline_vals[1], label="Spline")
-    plt.plot(x, y, 'ro--', label="Control Points")
+    plt.plot(ctrl_pts[0], ctrl_pts[1], 'ro--', label="Control Points")
+    plt.legend()
+    plt.show()
+
+    # Test clamped spline
+    knots_clamped = jnp.concatenate([jnp.zeros(k+1), jnp.arange(1, n-k), jnp.ones(k+1) * (n-k)])
+
+    t_clamped = jnp.linspace(knots_clamped[k], knots_clamped[n], n_t)
+    clamped_vals = b(t_clamped, knots_clamped)
+    breakpoint()
+
+    plt.plot(clamped_vals[0], clamped_vals[1], label="Clamped Spline")
+    plt.plot(ctrl_pts[0], ctrl_pts[1], 'ro--', label="Control Points")
     plt.legend()
     plt.show()
