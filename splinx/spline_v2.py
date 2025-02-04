@@ -6,11 +6,13 @@ import jax
 from jax import jit, random, vmap
 import jax.numpy as jnp
 from functools import partial
+import matplotlib
 import matplotlib.pyplot as plt
 from jax import vmap, lax, debug
 from jax import custom_jvp
 from timeit import timeit
 
+matplotlib.use("QtAgg")
 
 # @jit
 @partial(jit, static_argnums=(3,))
@@ -92,6 +94,7 @@ if __name__ == "__main__":
     indices = jnp.arange(n)
     print(f"basis: {basis_vmap(t, knots, indices, k)}")
 
+    basis_vmap = vmap(basis, in_axes=(None, None, 0, None), out_axes=0)
 
     # Function that vmaps over both all basis functions and an input array of t values
     get_bases = vmap(vmap(basis, in_axes=(0, None, None, None)), in_axes=(None, None, 0, None))
@@ -114,3 +117,21 @@ if __name__ == "__main__":
     # Test gradient
     grad = jax.grad(lambda t: jnp.sum(vmap(basis, in_axes=(0,None,None,None))(t, knots, indices, k)))
     print(grad(jnp.array([[0.5]])))
+
+
+    # Plotting a test B-spline
+    x = jnp.repeat(jnp.array([ii for ii in range(20)]), 2)
+    y = jnp.tile(jnp.array([0, 1, 1, 0]), 10)
+
+    ctrl_pts = jnp.stack([x, y], axis=0)
+
+    b = vmap(lambda t: ctrl_pts @ basis_vmap(t, knots, indices, k), in_axes=0)
+
+    t_vals = jnp.linspace(knots[0], knots[-1], 1000)
+
+    spline_vals = b(t_vals).reshape(-1, 1000)
+
+    plt.plot(spline_vals[0], spline_vals[1], label="Spline")
+    plt.plot(x, y, 'ro--', label="Control Points")
+    plt.legend()
+    plt.show()
